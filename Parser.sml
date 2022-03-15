@@ -44,7 +44,7 @@ struct
                     if ret = [] then
                       [[Reserved x]]
                     else
-                      if List.exists (fn (s,pri) => x=s) Keywords.clauseKeywords then
+                      if List.exists (fn (s,pri) => x=s) Keywords.clauseKeywords then (* 予約語xと節のリストに合致するものがあるかを判定 *)
                         []::((Reserved x)::(hd ret))::(tl ret)
                       else
                         ((Reserved x)::(hd ret))::(tl ret)
@@ -60,7 +60,7 @@ struct
                   end
                 | sc_sub [] = [[]]
             in
-              tl (sc_sub btks)
+              tl (sc_sub btks) (* 頭部は必ず空リストになるはずだからtlで尾部だけ返す。 [[], [Reserved "SETS", ...], [Reserved "VARIABLES", ...], ...]*)
             end
         fun clauses_sub [] = []
           | clauses_sub btkslst =
