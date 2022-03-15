@@ -57,14 +57,14 @@ fun lexer code =
       [] 
     else
       let
-        val c = String.sub(code,0)
+        val c = String.sub(code,0) (* 1文字目をコピーして *) 
       in
         if
-          Char.isSpace c
+          Char.isSpace c (* 1文字目が空白だったら *)
         then
-          lexer (String.extract(code,1,NONE))
+          lexer (String.extract(code,1,NONE))  (* 1文字目を削除 *)
         else
-          if c = #"\"" then
+          if c = #"\"" then (* ダブルクオテーションだったら文字列の処理 *)
             let
               val strN = getStrN (String.extract(code,1,NONE))
             in
@@ -73,7 +73,7 @@ fun lexer code =
           else
             let 
               val klist = List.find (fn x => ((String.isPrefix (#1(x))) code)) Keywords.keywords
-              val alist = List.find (fn x => (String.isPrefix x code)) Keywords.alphaKeywords
+              val alist = List.find (fn x => (String.isPrefix x code)) Keywords.alphaKeywords  (* alphaKeywordsの中で最初にcodeという文字列の頭にマッチしたものをオプション型で返す *)
             in
               if 
                 klist <> NONE
@@ -117,7 +117,7 @@ fun lexer code =
                       if rest = "" orelse String.sub(rest,0) <> #"." then
                         IntegerLiteral (valOf(IntInf.fromString(String.extract(code,0,SOME(digitN))))) :: lexer rest
                       else
-                        if rest <> "." andalso (Char.isDigit) (String.sub(rest,1)) then(*restは非空文字列&restの先頭は"."&rest="."でない&"."の次は数字*)
+                        if rest <> "." andalso (Char.isDigit) (String.sub(rest,1)) then(*restは非空文字列 & restの先頭は"." & rest="."でない & "."の次は数字*)
                           let
                             val underpointRest = String.extract(rest,1,NONE)
                             val fractionalDigitN = getDigitsN underpointRest
