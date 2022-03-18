@@ -56,6 +56,7 @@ and
 | BC_PROPERTIES of BPredicate
 | BC_INVARIANT of BPredicate
 | BC_ASSERTIONS of BPredicate
+| BC_VALUES of BPredicate
 
 (*モジュール系*)
 (*モデル展開後にはこれらは登場しない*)
@@ -64,6 +65,7 @@ and
 | BC_PROMOTES of BMchInstanciation list
 | BC_EXTENDS of BMchInstanciation list
 | BC_USES of BMchInstanciation list
+| BC_IMPORTS of BMchInstanciation list
 
 (*変数導入系*)
 | BC_CCONSTANTS of BToken list
@@ -79,7 +81,7 @@ and
 and
   BComponent = BMch of string * BToken list * (string * BClause) list 
 | BRef of string * string * BToken list * BClause list 
-| BImp of string * string * BToken list * BClause list
+| BImp of string * string * BToken list * (string * BClause) list
 and
   BOperation = BOp of string * BToken list * BToken list * BSubstitution
 and

@@ -1,0 +1,9 @@
+IMPLEMENTATION Library_i(aa, bb)
+REFINES Library
+VALUES
+    USERID = 1..100
+IMPORTS
+    users_i.ARRAY(USERID\/{0}, 0, 100)
+INVARIANT
+    users = ran(users_i.arr)
+END

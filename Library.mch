@@ -3,7 +3,7 @@ MACHINE
 SETS
     USERID
 VARIABLES
-    users
+    users, aa
 INVARIANT
     users : FIN(USERID)
 INITIALISATION

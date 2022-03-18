@@ -16,10 +16,12 @@ struct
       ("EXTENDS",50), 
       ("USES",60), 
       ("SETS",70), 
+      ("IMPORTS", 75), (* ちょっと追加させてもらいました by 大久保 *)
       ("CONCRETE_CONSTANTS",80), 
       ("ABSTRACT_CONSTANTS",90), 
       ("CONSTANTS",80), 
       ("PROPERTIES",100), 
+      ("VALUES", 105), (* ちょっと追加させてもらいましたagain by 大久保 *)
       ("CONCRETE_VARIABLES",110), 
       ("ABSTRACT_VARIABLES",120), 
       ("VARIABLES",120),
