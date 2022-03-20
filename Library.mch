@@ -5,9 +5,12 @@ SETS
 VARIABLES
     users, aa
 INVARIANT
-    users : FIN(USERID)
+    users : FIN(USERID) &
+    aa : 0..100 --> USERID &
+    !xx.(xx : dom(aa) => aa(xx) : ran(aa))
 INITIALISATION
-    users := {}
+    users := {} ||
+    aa := USERID
 OPERATIONS
     uid <-- addUser =
     PRE

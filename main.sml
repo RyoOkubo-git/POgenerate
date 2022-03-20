@@ -31,10 +31,12 @@ use "ProofObligationGenerator.sml";
 
 val impTree = ImpParser.parse (lexer (Utils.fileToString "Library_i.imp"))
 
+val syntaxTree = Parser.parse (lexer (Utils.fileToString "Library.mch"))
 
-(* val syntaxTree = Parser.parse (lexer (Utils.fileToString fileName)) (*構文木生成*)
 
-val testVar = ProofObligationGenerator.model_var_list syntaxTree *)
+(* val syntaxTree = Parser.parse (lexer (Utils.fileToString fileName)) *) (*構文木生成*)
+
+val testVar = ProofObligationGenerator.po_generate syntaxTree impTree
 
 (* val typedSyntaxTree = TypeInference.type_component syntaxTree *) (*型付け*)
 
