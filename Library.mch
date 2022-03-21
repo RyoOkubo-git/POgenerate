@@ -1,16 +1,13 @@
 MACHINE
-    Library
+    Library(aa, bb)
 SETS
     USERID
 VARIABLES
-    users, aa
+    users
 INVARIANT
-    users : FIN(USERID) &
-    aa : 0..100 --> USERID &
-    !xx.(xx : dom(aa) => aa(xx) : ran(aa))
+    users : FIN(USERID)
 INITIALISATION
-    users := {} ||
-    aa := USERID
+    users := {}
 OPERATIONS
     uid <-- addUser =
     PRE

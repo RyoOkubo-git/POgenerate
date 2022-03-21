@@ -5,5 +5,5 @@ VALUES
 IMPORTS
     users_i.ARRAY(USERID\/{0}, 0, 100)
 INVARIANT
-    users = ran(users_i.arr)
+    users = {xx | xx : ran(users_i.arr) & aa : ran(users_i.arr)}
 END

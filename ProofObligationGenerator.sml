@@ -1,7 +1,7 @@
 structure ProofObligationGenerator =
 struct
 	exception ProofObligationGeneratorError of string
-  fun po_generate model imp =
+  fun po_generate (model as BMch(_, mchparams, _)) imp =
     let
         val velist = values_equal_list imp
         val rwmch = replace_values model velist
@@ -9,8 +9,10 @@ struct
         val modelvar = model_var_list model
         val linkinv = link_invariant modelvar rwimp
         val importmchs = imports_machine_list rwimp
+        val linkvars = List.map (remove_not_variables mchparams) (List.map remove_same_variables (List.map variables_from_expression linkinv))
+        val vlinkl = link_vars_and_libraries modelvar linkvars importmchs
     in
-      importmchs
+      vlinkl
     end
   and
     find_clause cname clauses =
@@ -26,7 +28,9 @@ struct
     model_var_list (BMch(machinename, _, clauses)) =
       let
         val avclause = find_clause "ABSTRACT_VARIABLES" clauses
-        fun extract_var_list (BC_AVARIABLES varlist) = varlist
+        fun extract_var_list (BC_AVARIABLES ((Var [mvar]) :: varlist)) = 
+          mvar :: extract_var_list (BC_AVARIABLES varlist)
+        | extract_var_list (BC_AVARIABLES []) = []
       in
         extract_var_list (#2(avclause))
       end
@@ -41,8 +45,8 @@ struct
           else
             extract_linkinv mvar invlist
         | extract_linkinv _ [] = []
-        fun extract_linkinv_list ((Var mvar) :: vlist) (Inv as (BC_INVARIANT (BP_list invlist))) =
-          extract_linkinv (hd mvar) invlist @ extract_linkinv_list vlist Inv
+        fun extract_linkinv_list (mvar :: vlist) (Inv as (BC_INVARIANT (BP_list invlist))) =
+          extract_linkinv mvar invlist @ extract_linkinv_list vlist Inv
         | extract_linkinv_list [] _ = []
       in
         extract_linkinv_list  varlist (#2(invclause))
@@ -96,29 +100,36 @@ struct
       | (cname, BC_EXTENDS mchlist)               => (cname, BC_EXTENDS (replace_mch_list eqlist mchlist)) :: (replace_values_sub clauselist eqlist)
       | (cname, BC_USES mchlist)                  => (cname, BC_USES (replace_mch_list eqlist mchlist)) :: (replace_values_sub clauselist eqlist)
       | (cname, BC_IMPORTS mchlist)               => (cname, BC_IMPORTS (replace_mch_list eqlist mchlist)) :: (replace_values_sub clauselist eqlist)
+      | (cname, BC_CCONSTANTS tknlist)            => (cname, BC_CCONSTANTS (List.map (replace_token eqlist) tknlist)) :: (replace_values_sub clauselist eqlist)
+      | (cname, BC_ACONSTANTS tknlist)            => (cname, BC_ACONSTANTS (List.map (replace_token eqlist) tknlist)) :: (replace_values_sub clauselist eqlist)
+      | (cname, BC_CVARIABLES tknlist)            => (cname, BC_CVARIABLES (List.map (replace_token eqlist) tknlist)) :: (replace_values_sub clauselist eqlist)
+      | (cname, BC_AVARIABLES tknlist)            => (cname, BC_AVARIABLES (List.map (replace_token eqlist) tknlist)) :: (replace_values_sub clauselist eqlist)
       | (cname, BC_INITIALISATION subst)          => (cname, BC_INITIALISATION (replace_subst eqlist subst)) :: (replace_values_sub clauselist eqlist)
       | (cname, BC_OPERATIONS oplist)             => (cname, BC_OPERATIONS (replace_op_list eqlist oplist)) :: (replace_values_sub clauselist eqlist)
       | other                                     => other :: (replace_values_sub clauselist eqlist)
   and
-    replace_expr (ident, rep) expr =
-    case expr of
-        BE_Leaf(btype, Var varlist)                            => if hd(varlist) = ident then rep else BE_Leaf(btype, Var varlist)
-      | BE_Node1(btype, key, node)                             => BE_Node1(btype, key, replace_expr (ident, rep) node)
-      | BE_Node2(btype, key, left, right)                      => BE_Node2(btype, key, replace_expr (ident, rep) left, replace_expr (ident, rep) right)
-      | BE_NodeN(btype, key, nodelist)                         => BE_NodeN(btype, key, List.map (replace_expr (ident, rep)) nodelist)
-      | BE_Fnc(btype,  node1, node2)                           => BE_Fnc(btype, replace_expr (ident, rep) node1, replace_expr (ident, rep) node2)
-      | BE_Img(btype,  node1, node2)                           => BE_Img(btype, replace_expr (ident, rep) node1, replace_expr (ident, rep) node2)
-      | BE_ExSet(btype, nodelist)                              => BE_ExSet(btype, List.map (replace_expr (ident, rep)) nodelist)
-      | BE_InSet(btype, tkn, BP_list nodelist)                 => BE_InSet(btype, tkn, BP_list (List.map (replace_expr (ident, rep)) nodelist))
-      | BE_Seq(btype, nodelist)                                => BE_Seq(btype, List.map (replace_expr (ident, rep)) nodelist)
-      | BE_ForAny(btype, BP_list nodelist1, BP_list nodelist2) => BE_ForAny(btype, BP_list (List.map (replace_expr (ident, rep)) nodelist1), BP_list (List.map (replace_expr (ident, rep)) nodelist2))
-      | BE_Exists(btype, BP_list nodelist)                     => BE_Exists(btype, BP_list (List.map (replace_expr (ident, rep)) nodelist))
-      | BE_Lambda(btype, tkn, BP_list nodelist, node)          => BE_Lambda(btype, tkn, BP_list (List.map (replace_expr (ident, rep)) nodelist), replace_expr (ident, rep) node)
-      | BE_Sigma(btype, tkn, BP_list nodelist, node)           => BE_Sigma(btype, tkn, BP_list (List.map (replace_expr (ident, rep)) nodelist), replace_expr (ident, rep) node)
-      | BE_Pi(btype, tkn, BP_list nodelist, node)              => BE_Pi(btype, tkn, BP_list (List.map (replace_expr (ident, rep)) nodelist), replace_expr (ident, rep) node)
-      | BE_Inter(btype, tkn, BP_list nodelist, node)           => BE_Inter(btype, tkn, BP_list (List.map (replace_expr (ident, rep)) nodelist), replace_expr (ident, rep) node)
-      | BE_Union(btype, tkn, BP_list nodelist, node)           => BE_Union(btype, tkn, BP_list (List.map (replace_expr (ident, rep)) nodelist), replace_expr (ident, rep) node)
-      | other                                                  => other
+    replace_expr ("_", BE_Leaf(_, Var [prefix])) (BE_Leaf(btype, Var [varname])) =
+      BE_Leaf(btype, Var [prefix ^ varname])
+    | replace_expr (ident, rep) expr =
+        case expr of
+            BE_Leaf(btype, Var [prefix, varname])                  => BE_Leaf(btype, Var [prefix ^ "_" ^ varname])
+          | BE_Leaf(btype, Var varlist)                            => if (hd varlist) = ident then rep else BE_Leaf(btype, Var varlist)
+          | BE_Node1(btype, key, node)                             => BE_Node1(btype, key, replace_expr (ident, rep) node)
+          | BE_Node2(btype, key, left, right)                      => BE_Node2(btype, key, replace_expr (ident, rep) left, replace_expr (ident, rep) right)
+          | BE_NodeN(btype, key, nodelist)                         => BE_NodeN(btype, key, List.map (replace_expr (ident, rep)) nodelist)
+          | BE_Fnc(btype,  node1, node2)                           => BE_Fnc(btype, replace_expr (ident, rep) node1, replace_expr (ident, rep) node2)
+          | BE_Img(btype,  node1, node2)                           => BE_Img(btype, replace_expr (ident, rep) node1, replace_expr (ident, rep) node2)
+          | BE_ExSet(btype, nodelist)                              => BE_ExSet(btype, List.map (replace_expr (ident, rep)) nodelist)
+          | BE_InSet(btype, tkn, BP_list nodelist)                 => BE_InSet(btype, tkn, BP_list (List.map (replace_expr (ident, rep)) nodelist))
+          | BE_Seq(btype, nodelist)                                => BE_Seq(btype, List.map (replace_expr (ident, rep)) nodelist)
+          | BE_ForAny(btype, BP_list nodelist1, BP_list nodelist2) => BE_ForAny(btype, BP_list (List.map (replace_expr (ident, rep)) nodelist1), BP_list (List.map (replace_expr (ident, rep)) nodelist2))
+          | BE_Exists(btype, BP_list nodelist)                     => BE_Exists(btype, BP_list (List.map (replace_expr (ident, rep)) nodelist))
+          | BE_Lambda(btype, tkn, BP_list nodelist, node)          => BE_Lambda(btype, tkn, BP_list (List.map (replace_expr (ident, rep)) nodelist), replace_expr (ident, rep) node)
+          | BE_Sigma(btype, tkn, BP_list nodelist, node)           => BE_Sigma(btype, tkn, BP_list (List.map (replace_expr (ident, rep)) nodelist), replace_expr (ident, rep) node)
+          | BE_Pi(btype, tkn, BP_list nodelist, node)              => BE_Pi(btype, tkn, BP_list (List.map (replace_expr (ident, rep)) nodelist), replace_expr (ident, rep) node)
+          | BE_Inter(btype, tkn, BP_list nodelist, node)           => BE_Inter(btype, tkn, BP_list (List.map (replace_expr (ident, rep)) nodelist), replace_expr (ident, rep) node)
+          | BE_Union(btype, tkn, BP_list nodelist, node)           => BE_Union(btype, tkn, BP_list (List.map (replace_expr (ident, rep)) nodelist), replace_expr (ident, rep) node)
+          | other                                                  => other
   and
     replace_expr_list eqlist (expr :: exprlist) =
       (replace_expr_eqlist eqlist expr) :: (replace_expr_list eqlist exprlist)
@@ -142,7 +153,7 @@ struct
       | BS_If(iflist)                                    => BS_If(List.map (fn ((BP_list x), y) => ((BP_list (replace_expr_list eqlist x)), replace_subst eqlist y)) iflist)
       | BS_Select(selist)                                => BS_Select(List.map (fn ((BP_list x), y) => ((BP_list (replace_expr_list eqlist x)), replace_subst eqlist y)) selist)
       | BS_Case(expr, calist)                            => BS_Case((replace_expr_eqlist eqlist expr), (List.map (fn (x, y) => (replace_expr_list eqlist x, replace_subst eqlist y)) calist))
-      | BS_Any(tkn, BP_list exprlist, sub)               => BS_Any(tkn, BP_list (replace_expr_list eqlist exprlist), (replace_subst eqlist sub))
+      | BS_Any(tkn, BP_list exprlist, sub)               => BS_Any((List.map (replace_token eqlist) tkn), BP_list (replace_expr_list eqlist exprlist), (replace_subst eqlist sub))
       | BS_Let(lelist, sub)                              => BS_Let((List.map (fn (x, y) => (x, replace_expr_eqlist eqlist y)) lelist), (replace_subst eqlist sub))
       | BS_BecomesElt(expr1, expr2)                      => BS_BecomesElt((replace_expr_eqlist eqlist expr1), (replace_expr_eqlist eqlist expr2))
       | BS_BecomesSuchThat(exprlist1, BP_list exprlist2) => BS_BecomesSuchThat((replace_expr_list eqlist exprlist1), BP_list (replace_expr_list eqlist exprlist2))
@@ -152,8 +163,13 @@ struct
       | BS_Simultaneous(sublist)                         => BS_Simultaneous(List.map (replace_subst eqlist) sublist)
   and
     replace_op_list eqlist (BOp(opname, ret, arg, sub) :: oplist) =
-      BOp(opname, ret, arg, (replace_subst eqlist sub)) :: (replace_op_list eqlist oplist)
+      BOp(opname, (List.map (replace_token eqlist) ret), (List.map (replace_token eqlist) arg), (replace_subst eqlist sub)) :: (replace_op_list eqlist oplist)
     | replace_op_list _ [] = []
+  and
+    replace_token (("_", BE_Leaf(_, Var [prefix])) :: eqlist) (Var [varname]) =
+      Var [prefix ^ varname]
+    | replace_token (eq :: eqlist) tkn = replace_token eqlist tkn
+    | replace_token [] tkn = tkn
   and
     imports_machine_list (BImp (_, _, _, clauses)) =
       let
@@ -165,8 +181,8 @@ struct
   and
     lib_tree (varlist) =
     case List.length(varlist) of
-        1 => (NONE, Parser.parse(lexer (Utils.fileToString ((hd varlist) ^ ".mch"))))
-      | 2 => (SOME (hd varlist) Parser.parse(lexer (Utils.fileToString ((hd (tl varlist)) ^ ".mch"))))
+        1 => (("_", BE_Leaf(NONE, Var [""])), Parser.parse(lexer (Utils.fileToString ((hd varlist) ^ ".mch"))))
+      | 2 => (("_", BE_Leaf(NONE, Var [(hd varlist) ^ "_"])), Parser.parse(lexer (Utils.fileToString ((hd (tl varlist)) ^ ".mch"))))
       | _ => raise ProofObligationGeneratorError "POG error : wrong machine name in IMPORTS clause"
   and
     lib_tree_list [] = []
@@ -174,7 +190,7 @@ struct
       let
         val (libname, libtree) = lib_tree varlist
         val pelist = lib_param_eqlist libtree arglist
-        val rwlibtree = replace_values libtree pelist
+        val rwlibtree = replace_values libtree (pelist @ [libname])
       in
         rwlibtree :: (lib_tree_list mchlist)
       end
@@ -188,4 +204,52 @@ struct
       in
         arg_eq_param paramlist arglist
       end
+  and
+    variables_from_expression expr =
+      case expr of
+            BE_Leaf(_, Var [ident])                                    => [ident]
+          | BE_Node1(_, _, node)                                       => variables_from_expression node
+          | BE_Node2(_, _, left, right)                                => (variables_from_expression left) @ (variables_from_expression right)
+          | BE_NodeN(_, _, nodelist)                                   => List.foldr (fn (x,y) => x @ y) [] (List.map variables_from_expression nodelist)
+          | BE_Fnc(_,  node1, node2)                                   => (variables_from_expression node1) @ (variables_from_expression node2)
+          | BE_Img(_,  node1, node2)                                   => (variables_from_expression node1) @ (variables_from_expression node2)
+          | BE_ExSet(_, nodelist)                                      => List.foldr (fn (x,y) => x @ y) [] (List.map variables_from_expression nodelist)
+          | BE_InSet(_, tokenlist, BP_list nodelist)                   => remove_not_variables tokenlist (List.foldr (fn (x,y) => x @ y) [] (List.map variables_from_expression nodelist))
+          | BE_Seq(_, nodelist)                                        => List.foldr (fn (x,y) => x @ y) [] (List.map variables_from_expression nodelist)
+          | BE_ForAny(tokenlist, BP_list nodelist1, BP_list nodelist2) => remove_not_variables tokenlist (List.foldr (fn (x,y) => x @ y) [] (List.map variables_from_expression (nodelist1 @ nodelist2)))
+          | BE_Exists(tokenlist, BP_list nodelist)                     => remove_not_variables tokenlist (List.foldr (fn (x,y) => x @ y) [] (List.map variables_from_expression nodelist))
+          | BE_Lambda(_, tokenlist, BP_list nodelist, node)            => remove_not_variables tokenlist (List.foldr (fn (x,y) => x @ y) [] (List.map variables_from_expression (node :: nodelist)))
+          | BE_Sigma(_, token, BP_list nodelist, node)                 => remove_not_variables [token] (List.foldr (fn (x,y) => x @ y) [] (List.map variables_from_expression (node :: nodelist)))
+          | BE_Pi(_, token, BP_list nodelist, node)                    => remove_not_variables [token] (List.foldr (fn (x,y) => x @ y) [] (List.map variables_from_expression (node :: nodelist)))
+          | BE_Inter(_, tokenlist, BP_list nodelist, node)             => remove_not_variables tokenlist (List.foldr (fn (x,y) => x @ y) [] (List.map variables_from_expression (node :: nodelist)))
+          | BE_Union(_, tokenlist, BP_list nodelist, node)             => remove_not_variables tokenlist (List.foldr (fn (x,y) => x @ y) [] (List.map variables_from_expression (node :: nodelist)))
+          | _                                                          => []
+  and
+    remove_not_variables (((Var [nvname]) :: tokenlist) : BToken list) (varlist : string list) =
+      remove_not_variables tokenlist (List.filter (fn x => x<>nvname) varlist)
+    | remove_not_variables [] varlist = varlist
+  and
+    remove_same_variables ((v :: varlist) : string list) =
+      v :: (remove_same_variables (List.filter (fn x => x<>v) varlist))
+    | remove_same_variables [] = []
+  and
+    link_vars_and_libraries ((mvar :: modelvar) : string list) (linklists : string list list) (libraries : BComponent list) =
+      let
+        val link = List.find (fn x => (List.exists (fn y => y=mvar) x)) linklists
+        fun link_vars_and_libraries_sub mv ll libs =
+          let
+            val lv = hd (List.filter (fn x => x<>mv) ll)
+            val lib = List.find (fn x => (List.exists (fn y => y=lv) (model_var_list x))) libs
+          in
+            (mv, lv, lib)
+          end
+      in 
+        if link = NONE then
+          link_vars_and_libraries modelvar linklists libraries
+        else if (List.length (valOf link)) = 2 then
+          (link_vars_and_libraries_sub mvar (valOf link) libraries) :: (link_vars_and_libraries modelvar linklists libraries)
+        else
+          raise ProofObligationGeneratorError "POG error : model variable and implementation variable are not one-to-one correspondence"
+      end
+    | link_vars_and_libraries [] _ _ = []
 end
