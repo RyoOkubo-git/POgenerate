@@ -66,18 +66,39 @@ struct
       | BS_Identity                                      => BS_Identity
       | BS_Precondition(BP_list exprlist, sub)           => BS_Precondition(BP_list (replace_expr_list eqlist exprlist), (replace_subst eqlist sub))
       | BS_Assertion(BP_list exprlist, sub)              => BS_Assertion(BP_list (replace_expr_list eqlist exprlist), (replace_subst eqlist sub))
-      | BS_Choice(sublist)                               => BS_Choice(List.map (replace_subst eqlist) sublist)
+      | BS_Choice(e)                                     => replace_choice eqlist e
       | BS_If(iflist)                                    => BS_If(List.map (fn ((BP_list x), y) => ((BP_list (replace_expr_list eqlist x)), replace_subst eqlist y)) iflist)
       | BS_Select(selist)                                => BS_Select(List.map (fn ((BP_list x), y) => ((BP_list (replace_expr_list eqlist x)), replace_subst eqlist y)) selist)
-      | BS_Case(expr, calist)                            => BS_Case((replace_expr_eqlist eqlist expr), (List.map (fn (x, y) => (replace_expr_list eqlist x, replace_subst eqlist y)) calist))
+      | BS_Case(e)                                       => replace_case eqlist e
       | BS_Any(tkn, BP_list exprlist, sub)               => BS_Any((List.map (replace_token eqlist) tkn), BP_list (replace_expr_list eqlist exprlist), (replace_subst eqlist sub))
-      | BS_Let(lelist, sub)                              => BS_Let((List.map (fn (x, y) => (x, replace_expr_eqlist eqlist y)) lelist), (replace_subst eqlist sub))
+      | BS_Let(e)                                        => replace_let eqlist e
       | BS_BecomesElt(e)                                 => replace_becomeselt eqlist e
       | BS_BecomesSuchThat(e)                            => replace_becomessuchthat eqlist e
       | BS_Call(exprlist1, tkn, exprlist2)               => BS_Call((replace_expr_list eqlist exprlist1), tkn, (replace_expr_list eqlist exprlist2))
       | BS_BecomesEqual(e)                               => replace_becomesequal eqlist e
       | BS_BecomesEqual_list(e)                          => replace_becomesequallist eqlist e
       | BS_Simultaneous(sublist)                         => BS_Simultaneous(List.map (replace_subst eqlist) sublist)
+  and
+    replace_choice eqlist sublist =
+      replace_subst eqlist (BS_Select(List.map (fn x => (BP_list [], x)) sublist))
+  and
+    replace_case eqlist (expr, calist) =
+      let
+        fun deploy_case e (p::plist) =
+          BE_Node2(NONE, Keyword "Eq", e, p) :: (deploy_case e plist)
+        | deploy_case _ [] = []
+        fun link_predicate_and_substitution e (exprlist, subst) =
+          let
+            val prelist = deploy_case e exprlist
+          in
+            (BP_list prelist, subst)
+          end
+      in
+        replace_subst eqlist (BS_If(List.map (link_predicate_and_substitution expr) calist))
+      end
+  and
+    replace_let eqlist (lelist, sub) =
+      replace_subst (lelist @ eqlist) sub
   and
     replace_becomesequal eqlist (BE_Fnc(btype1, BE_Leaf(btype2, tkn), expr2), expr3) =
       BS_BecomesEqual(BE_Leaf(btype2, replace_token eqlist tkn), BE_Node2(btype2, Keyword "OverWrite", BE_Leaf(btype2, replace_token eqlist tkn), BE_ExSet(btype2, [BE_Node2(btype2, Keyword "Maplet", replace_expr_eqlist eqlist expr2, replace_expr_eqlist eqlist expr3)])))

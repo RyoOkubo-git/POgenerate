@@ -31,4 +31,31 @@ OPERATIONS
     THEN
         status := bool(ee : ran(arr))
     END
+
+    ret <-- test(arg) =
+    PRE
+        arr /= VALUE
+    THEN
+        LET xx BE
+            xx = arg + 1
+        IN
+            arr := arg |>> {xx}
+        END
+    END
+
+    ret2 <-- test2(arg2) =
+    PRE
+        arr /= VALUE
+    THEN
+        CASE arg2 OF
+            EITHER 0 THEN
+                arr := arr \/ {arg2}
+            OR 1, 2 THEN
+                arr := arr \/ {arg2+1}
+            OR 3, 4, 5 THEN
+                arr := arr \/ {arg2+2}
+            END
+        END
+        
+    END
 END
