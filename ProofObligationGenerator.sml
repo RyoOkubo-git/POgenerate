@@ -11,8 +11,10 @@ struct
         val importmchs = imports_machine_list rwimp
         val linkvars = List.map (remove_not_variables mchparams) (List.map remove_same_variables (List.map variables_from_expression linkinv))
         val vlinkl = link_vars_and_libraries modelvar linkvars importmchs
+        val modelopinfo = model_operation_info (hd modelvar) rwmch
+        val liboplist = candidate_library_operation (hd modelvar) modelopinfo vlinkl
     in
-      vlinkl
+      liboplist
     end
   and
     find_clause cname clauses =
@@ -145,7 +147,8 @@ struct
   and
     replace_subst eqlist subst =
       case subst of
-        BS_Block(sub)                                    => BS_Block(replace_subst eqlist sub)
+        BS_BecomesEqual(BE_Fnc(btype1, BE_Leaf(btype2, tkn), expr2), expr3) => BS_BecomesEqual(BE_Leaf(btype2, replace_token eqlist tkn), BE_Node2(btype2, Keyword "OverWrite", BE_Leaf(btype2, replace_token eqlist tkn), BE_ExSet(btype2, [BE_Node2(btype2, Keyword "Maplet", replace_expr_eqlist eqlist expr2, replace_expr_eqlist eqlist expr3)])))
+      | BS_Block(sub)                                    => BS_Block(replace_subst eqlist sub)
       | BS_Identity                                      => BS_Identity
       | BS_Precondition(BP_list exprlist, sub)           => BS_Precondition(BP_list (replace_expr_list eqlist exprlist), (replace_subst eqlist sub))
       | BS_Assertion(BP_list exprlist, sub)              => BS_Assertion(BP_list (replace_expr_list eqlist exprlist), (replace_subst eqlist sub))
@@ -252,4 +255,82 @@ struct
           raise ProofObligationGeneratorError "POG error : model variable and implementation variable are not one-to-one correspondence"
       end
     | link_vars_and_libraries [] _ _ = []
+  and
+    model_operation_info (targetvar : string) (BMch(_, _, clauses)) =
+      let
+        val opclause = find_clause "OPERATIONS" clauses
+        val modelop = case opclause of (_, BC_OPERATIONS[mo]) => mo
+        val modelopinfo = operation_info targetvar modelop
+      in
+        if List.length modelopinfo = 1 then
+          hd modelopinfo
+        else
+          raise ProofObligationGeneratorError "POG error : multiple substitution or no subsutitution including target var in model"
+      end
+  and
+    library_operation_infolist (targetvar : string) (BMch(_, _, clauses)) =
+      let
+        val opclause = find_clause "OPERATIONS" clauses
+        val libop = case opclause of (_, BC_OPERATIONS lo) => lo
+      in
+        List.foldr (fn (x,y) => x @ y) [] (List.map (operation_info targetvar) libop)
+      end
+  and
+    operation_info (targetvar : string)  (BOp(opname, ret, arg, subst) : BOperation) =
+    let
+      val sublist = substitution_including_targetvar targetvar subst
+      val precon = precondition_of_operation subst
+    in
+      List.map (fn x => (targetvar, #1(x), precon, #2(x), opname, ret, arg, subst)) sublist
+      (* (1.目的の変数, 2.代入or参照, 3.事前条件, 4.(x:=y)の形の代入文, 5.操作名, 6.返り値, 7.引数, 8.操作全体) *)
+    end
+  and
+    substitution_including_targetvar (targetvar : string) (subst : BSubstitution) =
+    case subst of
+        BS_BecomesEqual(BE_Leaf(btype, Var [defvar]), expr2) => if targetvar=defvar then [("dainyu", BS_BecomesEqual(BE_Leaf(btype, Var [defvar]), expr2))] 
+                                                                else if is_tree_member targetvar expr2 then [("sanshou", BS_BecomesEqual(BE_Leaf(btype, Var [defvar]), expr2))]
+                                                                else []
+      | BS_Call(exprlist1, tkn, exprlist2)                   => if List.foldr (fn (x, y) => x orelse y) false (List.map (is_tree_member targetvar) exprlist1) then [("dainyu", BS_Call(exprlist1, tkn, exprlist2))] 
+                                                                else if List.foldr (fn (x, y) => x orelse y) false (List.map (is_tree_member targetvar) exprlist2) then [("sanshou", BS_Call(exprlist1, tkn, exprlist2))]
+                                                                else []
+      | BS_BecomesEqual_list(exprlist1, exprlist2)           => if List.foldr (fn (x, y) => x orelse y) false (List.map (is_tree_member targetvar) exprlist1) then [("dainyu", BS_BecomesEqual_list(exprlist1, exprlist2))]
+                                                                else if List.foldr (fn (x, y) => x orelse y) false (List.map (is_tree_member targetvar) exprlist2) then [("sanshou", BS_BecomesEqual_list(exprlist1, exprlist2))]
+                                                                else []
+      | BS_Block(sub)                                        => substitution_including_targetvar targetvar sub
+      | BS_Identity                                          => []
+      | BS_Precondition(_, sub)                              => substitution_including_targetvar targetvar sub
+      | BS_Assertion(_, sub)                                 => substitution_including_targetvar targetvar sub
+      | BS_Choice(sublist)                                   => List.foldr (fn (x, y) => x @ y) [] (List.map (substitution_including_targetvar targetvar) sublist)
+      | BS_If(iflist)                                        => List.foldr (fn (x, y) => x @ y) [] (List.map (fn (_, x) => (substitution_including_targetvar targetvar x)) iflist)
+      | BS_Select(selist)                                    => List.foldr (fn (x, y) => x @ y) [] (List.map (fn (_, x) => (substitution_including_targetvar targetvar x)) selist)
+      | BS_Case(_, calist)                                   => List.foldr (fn (x, y) => x @ y) [] (List.map (fn (_, x) => (substitution_including_targetvar targetvar x)) calist)
+      | BS_Any(_, _, sub)                                    => substitution_including_targetvar targetvar sub
+      | BS_Let(_, sub)                                       => substitution_including_targetvar targetvar sub
+      | BS_BecomesElt(_, _)                                  => []
+      | BS_BecomesSuchThat(_, _)                             => []
+      | BS_Simultaneous(sublist)                             => List.foldr (fn (x, y) => x @ y) [] (List.map (substitution_including_targetvar targetvar) sublist)
+      | _                                                    => []
+  and
+    precondition_of_operation subst =
+      case subst of
+        BS_Precondition(BP_list plist, _) => plist
+      | _ => []
+  and
+    candidate_library_operation modelvar modelopinfo vlinkl =
+      let
+        val mll = List.find (fn (x, _, _) => x=modelvar) vlinkl
+        val (_, linkvar, lib) = if mll<>NONE then (valOf mll) else ("", "", NONE)
+        val liboplist = if mll<>NONE then (library_operation_infolist linkvar (valOf lib)) else []
+        fun number_of_parameter_in_substitution mvar (BS_BecomesEqual(_, expr)) =
+          List.length (remove_not_variables [Var [mvar]] (variables_from_expression expr))
+        fun equal_var (Var varname1) (Var varname2) = (varname1 = varname2)
+        fun define_or_refine mdr (_, ldr, _, BS_BecomesEqual(BE_Leaf(_, varname),_), _, ret, _, _) =
+          if mdr = "dainyu" andalso ldr = "dainyu" then true
+          else if mdr = "sanshou" andalso ldr = "sanshou" andalso List.exists (fn x => equal_var x varname) ret then true
+          else false
+        val nofp = number_of_parameter_in_substitution modelvar (#4(modelopinfo))
+        val liboplist2 = List.filter (fn x => ((List.length (#7(x))) = nofp) ) liboplist
+      in
+        List.filter (define_or_refine (#2(modelopinfo))) liboplist
+      end
 end
