@@ -18,7 +18,7 @@ OPERATIONS
             uu /: users
         THEN
             users := users \/ {uu} ||
-            uid := uu
+            uid :: users
         END
     END
 END

@@ -21,7 +21,7 @@ OPERATIONS
             ii /: dom(arr)
         THEN
             arr(ii) := ee ||
-            idx := ii
+            idx :(idx:dom(arr))
         END
     END;
     
