@@ -30,7 +30,7 @@ OPERATIONS
         ee : VALUE
     THEN
         status := bool(ee : ran(arr))
-    END
+    END;
 
     ret <-- test(arg) =
     PRE
@@ -41,7 +41,7 @@ OPERATIONS
         IN
             arr := arg |>> {xx}
         END
-    END
+    END;
 
     ret2 <-- test2(arg2) =
     PRE
@@ -55,6 +55,20 @@ OPERATIONS
             OR 3, 4, 5 THEN
                 arr := arr \/ {arg2+2}
             END
+        END
+        
+    END;
+
+    ret3 <-- test3(arg3) =
+    PRE
+        arr /= VALUE
+    THEN
+        IF arg3 = 0 THEN
+            arr := arr \/ {arg2}
+        ELSIF arg3 = 1 THEN
+            arr := arr \/ {arg2+1}
+        ELSE
+            arr := arr \/ {arg2+2}
         END
         
     END
