@@ -12,7 +12,7 @@ struct
       val linkvars = List.map (Extract.remove_not_variables mchparams) (List.map Extract.remove_same_variables (List.map Extract.variables_from_expression linkinv))
       val vlinkl = Extract.link_vars_and_libraries modelvar linkvars importmchs
       val modelopinfo = Extract.model_operation_info (hd modelvar) rwmch
-      val liboplist = Extract.candidate_library_operation (hd modelvar) modelopinfo vlinkl
+      val liboplist = Extract.candidate_library_operation2 (hd modelvar) modelopinfo vlinkl
     in
       liboplist
     end

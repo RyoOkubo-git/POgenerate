@@ -164,14 +164,6 @@ struct
           raise ExtractError "POG error : multiple substitution or no subsutitution including target var in model"
       end
   and
-    library_operation_infolist (targetvar : string) (BMch(_, _, clauses)) =
-      let
-        val opclause = find_clause "OPERATIONS" clauses
-        val libop = case opclause of (_, BC_OPERATIONS lo) => lo
-      in
-        List.foldr (fn (x,y) => x @ y) [] (List.map (operation_info targetvar) libop)
-      end
-  and
     operation_info (targetvar : string)  (BOp(opname, ret, arg, subst) : BOperation) =
     let
       val sublist = substitution_including_targetvar targetvar subst
@@ -180,6 +172,44 @@ struct
       List.map (fn x => (targetvar, #1(x), precon, #2(x), opname, ret, arg, subst)) sublist
       (* (1.目的の変数, 2.代入or参照, 3.事前条件, 4.(x:=y)の形の代入文, 5.操作名, 6.返り値, 7.引数, 8.操作全体) *)
     end
+  and
+  library_operation_infolist (targetvar : string) (BMch(_, _, clauses)) =
+      let
+        val opclause = find_clause "OPERATIONS" clauses
+        val (_, BC_OPERATIONS libop) = opclause
+      in
+        List.map (library_operation_infolist_sub targetvar) libop
+      end
+  and
+    library_operation_infolist_sub (targetvar : string) (BOp(opname, returns, arguments, sub) : BOperation) =
+      OPInfo(opname, returns, arguments, (settle_constraints targetvar [] ([], []) [] sub))
+  and
+  settle_constraints (targetvar : string) (prelist : BExpr list) (anylist as (idlist, anyconstraints) : (BToken list * BExpr list)) (iflist : BExpr list) (subst : BSubstitution) =
+    case subst of
+        sub as BS_BecomesEqual(BE_Leaf(btype, Var [defvar]), expr2) => if targetvar=defvar then [PGInfo("dainyu", prelist, anylist, iflist, sub)] 
+                                                                       else if is_tree_member targetvar expr2 then [PGInfo("sanshou", prelist, anylist, iflist, sub)]
+                                                                       else []
+      | sub as BS_Call(exprlist1, tkn, exprlist2)                   => if List.foldr (fn (x, y) => x orelse y) false (List.map (is_tree_member targetvar) exprlist1) then [PGInfo("dainyu", prelist, anylist, iflist, sub)] 
+                                                                       else if List.foldr (fn (x, y) => x orelse y) false (List.map (is_tree_member targetvar) exprlist2) then [PGInfo("sanshou", prelist, anylist, iflist, sub)]
+                                                                       else []
+      | BS_Block(sub)                                               => settle_constraints targetvar prelist anylist iflist sub
+      | BS_Identity                                                 => []
+      | BS_Precondition(BP_list(pre), sub)                          => settle_constraints targetvar (prelist @ pre) anylist iflist sub
+      | BS_Assertion(BP_list(pre), sub)                             => settle_constraints targetvar (prelist @ pre) anylist iflist sub
+      | BS_If((BP_list(pre), sub) :: ifs)                           => if pre <> [] andalso ifs = nil then (settle_constraints targetvar prelist anylist (iflist @ pre) sub) @ [PGInfo("skip", prelist, anylist, (iflist @ [BE_Node1(NONE, (Reserved "not"), (predicatelist_2_logicaland pre))]), BS_Identity)]
+                                                                       else if pre = [] then settle_constraints targetvar prelist anylist iflist sub
+                                                                       else (settle_constraints targetvar prelist anylist (iflist @ pre) sub) @  (settle_constraints targetvar prelist anylist (iflist @ [BE_Node1(NONE, (Reserved "not"), (predicatelist_2_logicaland pre))]) (BS_If ifs))
+      | BS_Select((BP_list(pre), sub) :: ifs)                       => if pre <> [] andalso ifs = nil then (settle_constraints targetvar prelist anylist (iflist @ pre) sub) @ [PGInfo("skip", prelist, anylist, (iflist @ [BE_Node1(NONE, (Reserved "not"), (predicatelist_2_logicaland pre))]), BS_Identity)]
+                                                                       else if pre = [] then settle_constraints targetvar prelist anylist iflist sub
+                                                                       else (settle_constraints targetvar prelist anylist (iflist @ pre) sub) @  (settle_constraints targetvar prelist anylist (iflist @ [BE_Node1(NONE, (Reserved "not"), (predicatelist_2_logicaland pre))]) (BS_Select ifs))
+      | BS_Any(tlist, BP_list(pre), sub)                            => settle_constraints targetvar prelist ((idlist @ tlist), (anyconstraints @ pre)) iflist sub
+      | BS_Simultaneous(sublist)                                    => List.foldr (fn (x, y) => x @ y) [] (List.map (settle_constraints targetvar prelist anylist iflist) sublist)
+      | _                                                           => []
+  and
+    predicatelist_2_logicaland ((p1 :: p2 :: nil) : BExpr list) = BE_Node2(NONE, Reserved("And"), p1, p2)
+    | predicatelist_2_logicaland (p1 :: p2 :: prelist) = predicatelist_2_logicaland (BE_Node2(NONE, Reserved("And"), p1, p2) :: prelist)
+    | predicatelist_2_logicaland (p :: nil) = p
+    | predicatelist_2_logicaland _ = raise ExtractError "no expression"
   and
     substitution_including_targetvar (targetvar : string) (subst : BSubstitution) =
     case subst of
@@ -212,7 +242,7 @@ struct
         BS_Precondition(BP_list plist, _) => plist
       | _ => []
   and
-    candidate_library_operation modelvar (modelopinfo : (string * string * BExpr list * BSubstitution * string * BToken list * BToken list * BSubstitution)) vlinkl =
+    (* candidate_library_operation modelvar (modelopinfo : (string * string * BExpr list * BSubstitution * string * BToken list * BToken list * BSubstitution)) vlinkl =
       let
         val mll = List.find (fn (x, _, _) => x=modelvar) vlinkl
         val (_, linkvar, lib) = if mll<>NONE then (valOf mll) else ("", "", NONE)
@@ -229,16 +259,14 @@ struct
       in
         List.filter (define_or_refine (#2(modelopinfo))) liboplist
       end
-  and
+  and *)
     candidate_library_operation2 modelvar (modelopinfo : (string * string * BExpr list * BSubstitution * string * BToken list * BToken list * BSubstitution)) vlinkl =
       let
         val mll = List.find (fn (x, _, _) => x=modelvar) vlinkl
         val (_, linkvar, lib) = if mll<>NONE then (valOf mll) else ("", "", NONE)
         val liboplist = if mll<>NONE then (library_operation_infolist linkvar (valOf lib)) else []
-        (* val liboplist = if mll<>NONE then (library_operation_infolist linkvar (valOf lib)) else [] *)
-        
-        
       in
-        List.filter (define_or_refine (#2(modelopinfo))) liboplist
+        (* List.filter (define_or_refine (#2(modelopinfo))) liboplist *)
+        liboplist
       end
 end

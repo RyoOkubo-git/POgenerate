@@ -13,6 +13,7 @@ use "Parser.sml";
 use "TypeInference.sml";
 use "PrintComponent.sml";
 use "ImpParser.sml";
+use "Info.sml";
 use "Replace.sml";
 use "Extract.sml";
 use "ProofObligationGenerator.sml";
