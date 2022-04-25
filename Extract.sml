@@ -229,4 +229,16 @@ struct
       in
         List.filter (define_or_refine (#2(modelopinfo))) liboplist
       end
+  and
+    candidate_library_operation2 modelvar (modelopinfo : (string * string * BExpr list * BSubstitution * string * BToken list * BToken list * BSubstitution)) vlinkl =
+      let
+        val mll = List.find (fn (x, _, _) => x=modelvar) vlinkl
+        val (_, linkvar, lib) = if mll<>NONE then (valOf mll) else ("", "", NONE)
+        val liboplist = if mll<>NONE then (library_operation_infolist linkvar (valOf lib)) else []
+        (* val liboplist = if mll<>NONE then (library_operation_infolist linkvar (valOf lib)) else [] *)
+        
+        
+      in
+        List.filter (define_or_refine (#2(modelopinfo))) liboplist
+      end
 end
