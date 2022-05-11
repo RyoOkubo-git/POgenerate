@@ -152,6 +152,53 @@ struct
       end
     | link_vars_and_libraries [] _ _ = []
   and
+    model_constraints (BMch(machinename, _, clauses)) =
+      let
+        val clause = List.find (fn (s, _) => s="CONSTRAINTS") clauses
+      in
+        if clause <> NONE then
+          (#2(valOf clause))
+        else 
+          (BC_CONSTRAINTS (BP_list []))
+      end
+  and
+    model_variables (BMch(machinename, _, clauses)) =
+      let
+        val clause = List.find (fn (s, _) => s="ABSTRACT_VARIABLES") clauses
+        fun extract_vars (_, BC_AVARIABLES varlist) = varlist
+      in
+        if clause <> NONE
+        then
+          extract_vars (valOf clause)
+        else
+          []
+      end
+  and
+  model_invariant (BMch(machinename, _, clauses)) =
+      let
+        val clause = List.find (fn (s, _) => s="INVARIANT") clauses
+        fun extract_predicate (_, BC_INVARIANT (BP_list prelist)) = prelist
+      in
+        if clause <> NONE
+        then
+          extract_predicate (valOf clause)
+        else
+          []
+      end
+  and
+  model_initialisation (BMch(machinename, _, clauses)) =
+      let
+        val clause = List.find (fn (s, _) => s="INITIALISATION") clauses
+        fun extract_substitution (_, BC_INITIALISATION (BS_Simultaneous bslist)) = bslist
+        | extract_substitution (_, BC_INITIALISATION sub) = [sub]
+      in
+        if clause <> NONE
+        then
+          extract_substitution (valOf clause)
+        else
+          []
+      end
+  and
     model_operation_info (targetvar : string) (BMch(_, _, clauses)) =
       let
         val opclause = find_clause "OPERATIONS" clauses

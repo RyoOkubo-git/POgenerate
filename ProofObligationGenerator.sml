@@ -12,10 +12,17 @@ struct
       val linkvars = List.map (Extract.remove_not_variables mchparams) (List.map Extract.remove_same_variables (List.map Extract.variables_from_expression linkinv))
       val vlinkl = Extract.link_vars_and_libraries modelvar linkvars importmchs
       val modelopinfo = Extract.model_operation_info (hd modelvar) rwmch
+      val constraints = ("CONSTRAINTS", Extract.model_constraints model)
+      val variables = ("ABSTRACT_VARIABLES", BC_AVARIABLES ((Extract.model_variables model) @ List.foldr (fn (x, y) => x @ y) [] (List.map Extract.model_variables importmchs)))
+      val invaliant = ("INVARIANT", BC_INVARIANT (BP_list ((Extract.model_invariant model) @ List.foldr (fn (x, y) => x @ y) [] (List.map Extract.model_invariant importmchs) @ linkinv)))
+      val inits = (Extract.model_initialisation model) @ (List.foldr (fn (x, y) => x @ y) [] (List.map Extract.model_initialisation importmchs))
+      val initialisation = if (length inits) > 1 then ("INITIALISATION", BC_INITIALISATION (BS_Simultaneous inits))
+                           else if (length inits) = 1 then ("INITIALISATION", BC_INITIALISATION (hd inits))
+                           else ("INITIALISATION", BC_INITIALISATION (BS_Simultaneous [])) 
       val liboplist = Extract.candidate_library_operation2 (hd modelvar) modelopinfo vlinkl
+      val libopinfolist = List.map (po_generate_individual_operation modelopinfo) liboplist
     in
-      List.map (po_generate_individual_operation modelopinfo) liboplist
-      (* po_generate_individual_operation modelopinfo (hd liboplist) *)
+      libopinfolist
     end
   and
     po_generate_individual_operation modelopinfo (libop as OPInfo(opname, returns, arguments, subs) : PGType) =
@@ -23,17 +30,23 @@ struct
         val mparams = Extract.model_substitution_parameter (#4(modelopinfo))
         val replacelistlist = combination_params arguments mparams
       in
-        List.map (aplly_replace_library_substitutions subs) replacelistlist
+        List.map (aplly_replace_library_substitutions opname returns arguments subs) replacelistlist
       end
   and
-    aplly_replace_library_substitutions (PGInfo(subtype, prelist, (idlist, anyconstraints), iflist, subst)) replacelist =
+    aplly_replace_library_substitutions opname returns arguments subs replacelist =
       let
-        val npre = Replace.replace_expr_list replacelist prelist
-        val nany = Replace.replace_expr_list replacelist anyconstraints
-        val nif = Replace.replace_expr_list replacelist iflist
-        val nsub = Replace.replace_subst replacelist subst
+        fun replace_PGInfo ((PGInfo(subtype, prelist, (idlist, anyconstraints), iflist, subst)) :: ls) rl =
+          let
+            val npre = Replace.replace_expr_list rl prelist
+            val nany = Replace.replace_expr_list rl anyconstraints
+            val nif = Replace.replace_expr_list rl iflist
+            val nsub = Replace.replace_subst rl subst
+          in
+            (PGInfo(subtype, npre, (idlist, nany), nif, nsub) :: (replace_PGInfo ls rl))
+          end
+        | replace_PGInfo [] _ = []
       in
-        PGInfo(subtype, npre, (idlist, nany), nif, nsub)
+        OPInfo(opname, returns, arguments, replace_PGInfo subs replacelist)
       end
   and
     combination_params (lparams : BToken list) (mparams : BExpr list) =
