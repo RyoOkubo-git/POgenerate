@@ -152,6 +152,8 @@ struct
       end
     | link_vars_and_libraries [] _ _ = []
   and
+    model_parameter (BMch (_, mparams, _)) = mparams
+  and
     model_constraints (BMch(machinename, _, clauses)) =
       let
         val clause = List.find (fn (s, _) => s="CONSTRAINTS") clauses

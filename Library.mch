@@ -9,16 +9,12 @@ INVARIANT
 INITIALISATION
     users := {}
 OPERATIONS
-    uid <-- addUser =
+    uid <-- addUser(uu) =
     PRE
-        users /= USERID
+        users /= USERID &
+        uu : USERID
     THEN
-        ANY uu WHERE
-            uu : USERID &
-            uu /: users
-        THEN
-            users := users \/ {uu} ||
-            uid :: users
-        END
+        users := users \/ {uu} ||
+        uid :: users
     END
 END
