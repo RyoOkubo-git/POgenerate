@@ -208,7 +208,7 @@ struct
         val modelopinfo = operation_info targetvar modelop
       in
         if List.length modelopinfo = 1 then
-          hd modelopinfo
+          (modelop, hd modelopinfo)
         else
           raise ExtractError "POG error : multiple substitution or no subsutitution including target var in model"
       end
