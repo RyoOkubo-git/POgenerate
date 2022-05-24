@@ -64,11 +64,11 @@ OPERATIONS
         arr /= VALUE
     THEN
         IF arg3 = 0 THEN
-            arr := arr \/ {arg2}
+            arr := arr \/ {arg3}
         ELSIF arg3 = 1 THEN
-            arr := arr \/ {arg2+1}
+            arr := arr \/ {arg3+1}
         ELSE
-            arr := arr \/ {arg2+2}
+            arr := arr \/ {arg3+2}
         END
         
     END

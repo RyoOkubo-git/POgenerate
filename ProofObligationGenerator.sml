@@ -24,19 +24,19 @@ struct
       val liboplist = Extract.candidate_library_operation2 (hd modelvar) modelopinfo vlinkl
       val libopinfolist = List.map (library_operation_information modelopinfo) liboplist
     in
-      libopinfolist
-      (* po_generate_several_operation modelparam constraints variables invaliant initialisation libopinfolist modelopinfo2 (#4(modelopinfo)) (#7(modelopinfo)) *)
+      (* libopinfolist *)
+      po_generate_several_operation modelparam constraints variables invaliant initialisation libopinfolist modelopinfo2 (#4(modelopinfo)) (#7(modelopinfo))
     end
   and
-  po_generate_several_operation mp cr vr inv ini (op :: oplst) (mopinfo as OPInfo(_, _, _, [msubs])) mbe mparam =
+    po_generate_several_operation mp cr vr inv ini ((lop :: loplst) : PGType list list) (mopinfo as OPInfo(_, _, _, [msubs])) mbe mparam =
       let
-        val () = po_generate_one_operation mp cr vr inv ini op mopinfo mbe mparam 1
+        val () = po_generate_one_operation mp cr vr inv ini lop mopinfo mbe mparam 1
       in
-        po_generate_several_operation mp cr vr inv ini oplst mopinfo mbe mparam
+        po_generate_several_operation mp cr vr inv ini loplst mopinfo mbe mparam
       end
     | po_generate_several_operation _ _ _ _ _ [] _ _ _ = ()
   and
-    po_generate_one_operation mp cr vr inv ini (aptn :: aptnlst) (mopinfo as OPInfo(_, _, _, [msubs])) mbe mparam argnum =
+    po_generate_one_operation mp cr vr inv ini ((aptn :: aptnlst) : PGType list) (mopinfo as OPInfo(_, _, _, [msubs])) mbe mparam argnum =
       let
         val () = po_generate_one_substitution mp cr vr inv ini aptn mopinfo mparam argnum 1
       in

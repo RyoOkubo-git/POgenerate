@@ -87,9 +87,14 @@ struct
         fun deploy_case e (p::plist) =
           BE_Node2(NONE, Keyword "Eq", e, p) :: (deploy_case e plist)
         | deploy_case _ [] = []
+        fun connect_or (exp1 :: exp2 :: explst) =
+          connect_or (BE_Node2(NONE, Reserved "or", exp1, exp2) :: explst)
+        | connect_or [exp] = exp
+        | connect_or [] = raise ReplaceError "no expression"
         fun link_predicate_and_substitution e (exprlist, subst) =
           let
             val prelist = deploy_case e exprlist
+            (* val orexpr = connect_or prelist *)
           in
             (BP_list prelist, subst)
           end
