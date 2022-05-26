@@ -1,5 +1,5 @@
 MACHINE
-    Library(aa, bb)
+    Library
 SETS
     USERID
 VARIABLES

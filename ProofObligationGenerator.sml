@@ -13,10 +13,10 @@ struct
       val vlinkl = Extract.link_vars_and_libraries modelvar linkvars importmchs
       val (modelop, modelopinfo) = Extract.model_operation_info (hd modelvar) rwmch
       val modelparam = Extract.model_parameter model
-      val constraints = ("CONSTRAINTS", Extract.model_constraints model)
-      val variables = ("ABSTRACT_VARIABLES", BC_AVARIABLES ((Extract.model_variables model) @ List.foldr (fn (x, y) => x @ y) [] (List.map Extract.model_variables importmchs)))
-      val invaliant = ("INVARIANT", BC_INVARIANT (BP_list ((Extract.model_invariant model) @ List.foldr (fn (x, y) => x @ y) [] (List.map Extract.model_invariant importmchs) @ linkinv)))
-      val inits = (Extract.model_initialisation model) @ (List.foldr (fn (x, y) => x @ y) [] (List.map Extract.model_initialisation importmchs))
+      val constraints = ("CONSTRAINTS", Extract.model_constraints rwmch)
+      val variables = ("ABSTRACT_VARIABLES", BC_AVARIABLES ((Extract.model_variables rwmch) @ List.foldr (fn (x, y) => x @ y) [] (List.map Extract.model_variables importmchs)))
+      val invaliant = ("INVARIANT", BC_INVARIANT (BP_list ((Extract.model_invariant rwmch) @ List.foldr (fn (x, y) => x @ y) [] (List.map Extract.model_invariant importmchs) @ linkinv)))
+      val inits = (Extract.model_initialisation rwmch) @ (List.foldr (fn (x, y) => x @ y) [] (List.map Extract.model_initialisation importmchs))
       val initialisation = if (length inits) > 1 then ("INITIALISATION", BC_INITIALISATION (BS_Simultaneous inits))
                            else if (length inits) = 1 then ("INITIALISATION", BC_INITIALISATION (hd inits))
                            else ("INITIALISATION", BC_INITIALISATION (BS_Simultaneous []))
