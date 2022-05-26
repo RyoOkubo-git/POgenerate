@@ -50,8 +50,8 @@ struct
         val PGInfo (mstype, mpre, (manyid, manyco), mifc, mbe) = msub
         val BS_BecomesEqual(_, mright) = mbe
         val BS_BecomesEqual(_, lright) = lbe
-        val preassertions = ("ASSERTIONS", BC_ASSERTIONS (BP_list [BE_ForAny (mparam @ manyid @ lanyid, BP_list (mpre @ manyco @ mifc), BP_list (lpre))]))
-        val subassertions = ("ASSERTIONS", BC_ASSERTIONS (BP_list [BE_ForAny (mparam @ lanyid, BP_list (mpre @ manyco @ mifc @ lpre @ lanyco @ lifc), BP_list ([BE_Node2 (NONE, Keyword "Eq", mright, lright)]))]))
+        val preassertions = ("ASSERTIONS", BC_ASSERTIONS (BP_list [BE_ForAny (mparam @ manyid, BP_list (mpre @ manyco @ mifc), BP_list (lpre))]))
+        val subassertions = ("ASSERTIONS", BC_ASSERTIONS (BP_list [BE_ForAny (mparam @ manyid @ lanyid, BP_list (mpre @ manyco @ mifc @ lpre @ lanyco @ lifc), BP_list ([BE_Node2 (NONE, Keyword "Eq", mright, lright)]))]))
         val BC_CONSTRAINTS (BP_list crlist) = (#2(cr))
         val pomprename = lopname ^ "_pre" ^ Int.toString(argnum) ^ "_" ^ Int.toString(subnum)
         val pomsubname = lopname ^ "_sub" ^ Int.toString(argnum) ^ "_" ^ Int.toString(subnum)
