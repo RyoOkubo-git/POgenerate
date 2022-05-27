@@ -23,26 +23,30 @@ struct
       val modelopinfo2 = Extract.library_operation_infolist_sub (#1(modelopinfo)) (#2(modelopinfo)) modelop
       val liboplist = Extract.candidate_library_operation2 (hd modelvar) modelopinfo vlinkl
       val libopinfolist = List.map (library_operation_information modelopinfo) liboplist
+
+      val filestream = TextIO.openOut("mchlist")
+      val outputstring = po_generate_several_operation modelparam constraints variables invaliant initialisation libopinfolist modelopinfo2 (#4(modelopinfo)) (#7(modelopinfo))
+      val () = TextIO.output(filestream, outputstring)
+      val () = TextIO.closeOut(filestream)
     in
-      (* libopinfolist *)
-      po_generate_several_operation modelparam constraints variables invaliant initialisation libopinfolist modelopinfo2 (#4(modelopinfo)) (#7(modelopinfo))
+      ()
     end
   and
     po_generate_several_operation mp cr vr inv ini ((lop :: loplst) : PGType list list) (mopinfo as OPInfo(_, _, _, [msubs])) mbe mparam =
       let
-        val () = po_generate_one_operation mp cr vr inv ini lop mopinfo mbe mparam 1
+        val ostr = po_generate_one_operation mp cr vr inv ini lop mopinfo mbe mparam 1
       in
-        po_generate_several_operation mp cr vr inv ini loplst mopinfo mbe mparam
+        ostr ^ po_generate_several_operation mp cr vr inv ini loplst mopinfo mbe mparam
       end
-    | po_generate_several_operation _ _ _ _ _ [] _ _ _ = ()
+    | po_generate_several_operation _ _ _ _ _ [] _ _ _ = ""
   and
     po_generate_one_operation mp cr vr inv ini ((aptn :: aptnlst) : PGType list) (mopinfo as OPInfo(_, _, _, [msubs])) mbe mparam argnum =
       let
-        val () = po_generate_one_substitution mp cr vr inv ini aptn mopinfo mparam argnum 1
+        val ostr = po_generate_one_substitution mp cr vr inv ini aptn mopinfo mparam argnum 1
       in
-        po_generate_one_operation mp cr vr inv ini aptnlst mopinfo mbe mparam (argnum+1)
+        ostr ^ po_generate_one_operation mp cr vr inv ini aptnlst mopinfo mbe mparam (argnum+1)
       end
-    | po_generate_one_operation _ _ _ _ _ [] _ _ _ _ = ()
+    | po_generate_one_operation _ _ _ _ _ [] _ _ _ _ = ""
   and
     po_generate_one_substitution mp cr vr inv ini (lopinfo as OPInfo(lopname, lret, larg, (lsub :: lsubs))) (mopinfo as OPInfo(_, _, _, [msub])) mparam argnum subnum =
       let
@@ -54,15 +58,16 @@ struct
         val subassertions = ("ASSERTIONS", BC_ASSERTIONS (BP_list [BE_ForAny (mparam @ manyid @ lanyid, BP_list (mpre @ manyco @ mifc @ lpre @ lanyco @ lifc), BP_list ([BE_Node2 (NONE, Keyword "Eq", mright, lright)]))]))
         val BC_CONSTRAINTS (BP_list crlist) = (#2(cr))
         val pomprename = lopname ^ "_pre" ^ Int.toString(argnum) ^ "_" ^ Int.toString(subnum)
-        val pomsubname = lopname ^ "_sub" ^ Int.toString(argnum) ^ "_" ^ Int.toString(subnum)
+        val pomsubname = lopname ^ "_pst" ^ Int.toString(argnum) ^ "_" ^ Int.toString(subnum)
         val pompremachine = if crlist <> [] then BMch(pomprename, mp, [cr, vr, inv, preassertions, ini]) else BMch(pomprename, mp, [vr, inv, preassertions, ini])
         val pomsubmachine = if crlist <> [] then BMch(pomsubname, mp, [cr, vr, inv, subassertions, ini]) else BMch(pomsubname, mp, [vr, inv, subassertions, ini])
         val () = Utils.outputFile((PrintComponent.componentToString pompremachine), pomprename ^ ".mch")
         val () = Utils.outputFile((PrintComponent.componentToString pomsubmachine), pomsubname ^ ".mch")
-      in
-        po_generate_one_substitution mp cr vr inv ini (OPInfo(lopname, lret, larg, lsubs)) mopinfo mparam argnum (subnum+1) 
+        val outputstring = pomprename ^ "\n" ^ pomsubname ^ "\n"
+        in
+        outputstring ^ (po_generate_one_substitution mp cr vr inv ini (OPInfo(lopname, lret, larg, lsubs)) mopinfo mparam argnum (subnum+1))
       end
-    | po_generate_one_substitution _ _ _ _ _ (OPInfo(_, _, _, [])) _ _ _ _ = ()
+    | po_generate_one_substitution _ _ _ _ _ (OPInfo(_, _, _, [])) _ _ _ _ = ""
   and
     library_operation_information modelopinfo (libop as OPInfo(opname, returns, arguments, subs) : PGType) =
       let
