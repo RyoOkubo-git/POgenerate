@@ -25,37 +25,39 @@ struct
       val libopinfolist = List.map (library_operation_information modelopinfo) liboplist
 
       val filestream = TextIO.openOut("mchlist")
-      val outputstring = po_generate_several_operation modelparam constraints variables invaliant initialisation libopinfolist modelopinfo2 (#4(modelopinfo)) (#7(modelopinfo))
+      val outputstring = po_generate_several_operation modelparam constraints variables invaliant initialisation libopinfolist modelopinfo2 (#7(modelopinfo)) (hd vlinkl) (hd linkinv)
       val () = TextIO.output(filestream, outputstring)
       val () = TextIO.closeOut(filestream)
     in
-      ()
+      linkinv
     end
   and
-    po_generate_several_operation mp cr vr inv ini ((lop :: loplst) : PGType list list) (mopinfo as OPInfo(_, _, _, [msubs])) mbe mparam =
+    po_generate_several_operation mp cr vr inv ini ((lop :: loplst) : PGType list list) (mopinfo as OPInfo(_, _, _, [msubs])) mparam mlvars linv =
       let
-        val ostr = po_generate_one_operation mp cr vr inv ini lop mopinfo mbe mparam 1
+        val ostr = po_generate_one_operation mp cr vr inv ini lop mopinfo mparam mlvars linv 1
       in
-        ostr ^ po_generate_several_operation mp cr vr inv ini loplst mopinfo mbe mparam
+        ostr ^ po_generate_several_operation mp cr vr inv ini loplst mopinfo mparam mlvars linv
       end
-    | po_generate_several_operation _ _ _ _ _ [] _ _ _ = ""
+    | po_generate_several_operation _ _ _ _ _ [] _ _ _ _ = ""
   and
-    po_generate_one_operation mp cr vr inv ini ((aptn :: aptnlst) : PGType list) (mopinfo as OPInfo(_, _, _, [msubs])) mbe mparam argnum =
+    po_generate_one_operation mp cr vr inv ini ((aptn :: aptnlst) : PGType list) (mopinfo as OPInfo(_, _, _, [msubs])) mparam mlvars linv argnum =
       let
-        val ostr = po_generate_one_substitution mp cr vr inv ini aptn mopinfo mparam argnum 1
+        val ostr = po_generate_one_substitution mp cr vr inv ini aptn mopinfo mparam mlvars linv argnum 1
       in
-        ostr ^ po_generate_one_operation mp cr vr inv ini aptnlst mopinfo mbe mparam (argnum+1)
+        ostr ^ po_generate_one_operation mp cr vr inv ini aptnlst mopinfo mparam mlvars linv (argnum+1)
       end
-    | po_generate_one_operation _ _ _ _ _ [] _ _ _ _ = ""
+    | po_generate_one_operation _ _ _ _ _ [] _ _ _ _ _ = ""
   and
-    po_generate_one_substitution mp cr vr inv ini (lopinfo as OPInfo(lopname, lret, larg, (lsub :: lsubs))) (mopinfo as OPInfo(_, _, _, [msub])) mparam argnum subnum =
+    po_generate_one_substitution mp cr vr inv ini (lopinfo as OPInfo(lopname, lret, larg, (lsub :: lsubs))) (mopinfo as OPInfo(_, _, _, [msub])) mparam mlvars linv argnum subnum =
       let
         val PGInfo (lstype, lpre, (lanyid, lanyco), lifc, lbe) = lsub
         val PGInfo (mstype, mpre, (manyid, manyco), mifc, mbe) = msub
         val BS_BecomesEqual(_, mright) = mbe
         val BS_BecomesEqual(_, lright) = lbe
+        val eqlist = [(#1(mlvars), mright), (#2(mlvars), lright)]
+        val polink = Replace.replace_expr_eqlist eqlist linv
         val preassertions = ("ASSERTIONS", BC_ASSERTIONS (BP_list [BE_ForAny (mparam @ manyid, BP_list (mpre @ manyco @ mifc), BP_list (lpre))]))
-        val subassertions = ("ASSERTIONS", BC_ASSERTIONS (BP_list [BE_ForAny (mparam @ manyid @ lanyid, BP_list (mpre @ manyco @ mifc @ lpre @ lanyco @ lifc), BP_list ([BE_Node2 (NONE, Keyword "Eq", mright, lright)]))]))
+        val subassertions = ("ASSERTIONS", BC_ASSERTIONS (BP_list [BE_ForAny (mparam @ manyid @ lanyid, BP_list (mpre @ manyco @ mifc @ lpre @ lanyco @ lifc), BP_list ([polink]))]))
         val BC_CONSTRAINTS (BP_list crlist) = (#2(cr))
         val pomprename = lopname ^ "_pre" ^ Int.toString(argnum) ^ "_" ^ Int.toString(subnum)
         val pomsubname = lopname ^ "_pst" ^ Int.toString(argnum) ^ "_" ^ Int.toString(subnum)
@@ -65,9 +67,9 @@ struct
         val () = Utils.outputFile((PrintComponent.componentToString pomsubmachine), pomsubname ^ ".mch")
         val outputstring = pomprename ^ "\n" ^ pomsubname ^ "\n"
         in
-        outputstring ^ (po_generate_one_substitution mp cr vr inv ini (OPInfo(lopname, lret, larg, lsubs)) mopinfo mparam argnum (subnum+1))
+        outputstring ^ (po_generate_one_substitution mp cr vr inv ini (OPInfo(lopname, lret, larg, lsubs)) mopinfo mparam mlvars linv argnum (subnum+1))
       end
-    | po_generate_one_substitution _ _ _ _ _ (OPInfo(_, _, _, [])) _ _ _ _ = ""
+    | po_generate_one_substitution _ _ _ _ _ (OPInfo(_, _, _, [])) _ _ _ _ _ _ = ""
   and
     library_operation_information modelopinfo (libop as OPInfo(opname, returns, arguments, subs) : PGType) =
       let

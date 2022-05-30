@@ -10,7 +10,7 @@ INVARIANT
 	users = {xx | xx : ran(users_i_arr) & xx : ran(users_i_arr)}
 
 ASSERTIONS
-	!uu.(users /= 1 .. 100 & uu : 1 .. 100 & users_i_arr /= (1 .. 100 \/ {0}) & uu = 0 => users \/ {uu} = users_i_arr \/ {uu})
+	!uu.(users /= 1 .. 100 & uu : 1 .. 100 & users_i_arr /= (1 .. 100 \/ {0}) & uu = 0 => users \/ {uu} = {xx | xx : ran(users_i_arr \/ {uu}) & xx : ran(users_i_arr \/ {uu})})
 
 INITIALISATION
 	users := {} ||

@@ -18,8 +18,8 @@ use "Replace.sml";
 use "Extract.sml";
 use "ProofObligationGenerator.sml";
 
-
-(* val fileName =
+(*
+val mfileName =
   let
     val x = valOf(TextIO.inputLine TextIO.stdIn)
   in   
@@ -29,17 +29,44 @@ use "ProofObligationGenerator.sml";
       String.extract(x, 0, SOME((String.size x) -1)) 
     else 
       x 
-  end  *)
+  end
+
+val ifileName =
+  let
+    val x = valOf(TextIO.inputLine TextIO.stdIn)
+  in   
+    if 
+      String.sub(x, (String.size x) -1) = #"\n" 
+    then 
+      String.extract(x, 0, SOME((String.size x) -1)) 
+    else 
+      x 
+  end
+*)
 
 
-val impTree = ImpParser.parse (lexer (Utils.fileToString "Library_i.imp"))
+(* val impTree = ImpParser.parse (lexer (Utils.fileToString "Library_i.imp")) *)
 
-val syntaxTree = Parser.parse (lexer (Utils.fileToString "Library.mch"))
+(* val syntaxTree = Parser.parse (lexer (Utils.fileToString "Library.mch")) *)
 
+fun plus1(SOME X) = X
+|   plus1(NONE) = ""
 
-(* val syntaxTree = Parser.parse (lexer (Utils.fileToString fileName)) *) (*構文木生成*)
+val line = TextIO.stdIn
+val coargs = CommandLine.arguments(); (*ファイル名の入力をコマンドライン引数も対応可能に*)
+val mfile = if (length coargs) = 0 then (print "model file: ";plus1(TextIO.inputLine(line)))
+                else hd(coargs)^"\n"
+val mfileName = String.extract(mfile,0,(SOME (String.size(mfile)-1)))
+	   
+val ifile = if (length coargs) < 2  then (print "imprementation file: ";plus1(TextIO.inputLine(line)))
+                else hd(tl coargs)^"\n"
+val ifileName = String.extract(ifile,0,(SOME (String.size(ifile)-1)))
 
-val testVar = ProofObligationGenerator.po_generate syntaxTree impTree
+val syntaxTree = Parser.parse (lexer (Utils.fileToString mfileName)) (*構文木生成*)
+
+val impTree = ImpParser.parse (lexer (Utils.fileToString ifileName)) (*構文木生成*)
+
+val _ = ProofObligationGenerator.po_generate syntaxTree impTree
 
 (* val typedSyntaxTree = TypeInference.type_component syntaxTree *) (*型付け*)
 
@@ -48,6 +75,8 @@ val testVar = ProofObligationGenerator.po_generate syntaxTree impTree
 *)
 
 (* val () = Utils.outputFile((PrintComponent.componentToString typedSyntaxTree), "out.mch") (*出力*) *)
+
+val _ = OS.Process.exit(OS.Process.success)
 
 (*
 現状
